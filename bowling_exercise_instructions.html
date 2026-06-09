@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Computer Graphics - Exercise 6 - Interactive Bowling Game with WebGL</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .instructions {
+            background-color: #f9f9f9;
+            border-left: 5px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .mandatory {
+            background-color: #e8f4f8;
+            border-left: 5px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .code {
+            font-family: monospace;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+        }
+        .note {
+            background-color: #fffbea;
+            border-left: 5px solid #f1c40f;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .resources {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .highlight {
+            background-color: #FFFF99;
+            font-weight: bold;
+            padding: 2px 4px;
+        }
+        .pin-table {
+            width: auto;
+            margin: 10px 0;
+        }
+        .pin-table td {
+            text-align: center;
+            padding: 4px 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Computer Graphics - Exercise 6</h1>
+        <h2>Interactive Bowling Game with WebGL</h2>
+        <p>Spring Semester 2026</p>
+    </div>
+
+    <h2>Overview</h2>
+    <p>
+        In this exercise, you will turn the static bowling alley you built in
+        <strong>Exercise 5</strong> into a fully playable bowling game using WebGL and
+        Three.js. You will add an aiming and power-control system, roll the ball down the
+        lane with simplified physics, knock down pins with collision detection and a topple
+        animation, and keep score across a complete ten-frame game.
+    </p>
+
+    <div class="note">
+        <h3>This exercise builds on HW05</h3>
+        <p>
+            Start from your finished HW05 scene. The starter <code>src/hw6.js</code> ships
+            with the <strong>same bare lane</strong> you were given in HW05 so the project
+            runs immediately. <span class="highlight">Copy the full contents of your
+            completed HW05 <code>hw5.js</code></span> (lane, markings, gutters, pins, ball,
+            lighting, UI containers, orbit camera) into <code>src/hw6.js</code>, then
+            implement the HW06 systems marked with <code>// TODO (HW06)</code>.
+        </p>
+        <p>
+            Keep the <strong>same coordinate system</strong> as HW05: the foul line is at
+            Z=0, the lane extends toward negative Z, and the head pin sits at about Z=-57.
+        </p>
+    </div>
+
+    <div class="mandatory">
+        <h3>MANDATORY REQUIREMENTS - HW06 INTERACTIVE GAME</h3>
+        <p>Your implementation <strong>MUST</strong> include ALL of the following:</p>
+        <ol>
+            <li>An aiming and release control system:
+                <ul>
+                    <li>Move / aim the ball along the foul line before the roll</li>
+                    <li>An on-screen <strong>power meter</strong> that oscillates; the
+                        player locks in the power and releases the ball</li>
+                    <li>The ball is released with a direction and speed derived from the
+                        player's aim and chosen power</li>
+                    <li>The 'O' orbit-camera toggle from HW05 still works</li>
+                    <li>On-screen controls list (reuse your HW05 controls container)</li>
+                </ul>
+            </li>
+            <li>Simplified ball physics (hand-written, no physics engine):
+                <ul>
+                    <li>Ball rolls down the lane based on the chosen power and direction</li>
+                    <li>Motion integrated from velocity using delta time in the
+                        <code>animate()</code> loop</li>
+                    <li><strong>Gutter ball</strong> detection: if the ball leaves the lane
+                        edges it falls into the gutter and knocks down zero pins</li>
+                    <li>The ball comes to rest at the pin end (or after a gutter ball)</li>
+                </ul>
+            </li>
+            <li>Pin collision and toppling:
+                <ul>
+                    <li>Ball-to-pin collision detection (sphere vs. pin bounding cylinder)</li>
+                    <li>Basic pin-to-pin propagation (a falling pin can knock neighbours)</li>
+                    <li>Knocked pins visibly <strong>topple over</strong> (rotate and fall),
+                        then are removed / marked as down</li>
+                    <li>The set of standing pins is tracked accurately</li>
+                </ul>
+            </li>
+            <li>A ten-frame bowling scoring system:
+                <ul>
+                    <li>10 frames, two rolls each (three in the 10th on a strike/spare)</li>
+                    <li>Correct <strong>strike</strong> (X), <strong>spare</strong> (/),
+                        and open-frame scoring with the proper bonus rules</li>
+                    <li>Running cumulative total displayed in your HW05 scorecard container</li>
+                    <li>Pins reset between rolls / frames as appropriate</li>
+                </ul>
+            </li>
+            <li>Game flow and state management:
+                <ul>
+                    <li>Detect the end of a roll (ball stopped or left the lane), count the
+                        fallen pins, update the score, and advance to the next roll/frame</li>
+                    <li>Reset the ball to the approach for the next roll</li>
+                    <li>'R' resets the pins / starts a new game</li>
+                    <li>Clearly indicate the game is over after the 10th frame</li>
+                </ul>
+            </li>
+        </ol>
+        <div class="note">
+            <p><strong>Note:</strong> Use simplified, hand-written physics only. Do
+            <strong>NOT</strong> add an external physics engine (cannon-es, ammo.js, etc.).
+            The point is to implement the motion and collision yourself.</p>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h3>SPECIFIC IMPLEMENTATION DETAILS</h3>
+
+        <h4>1. Aiming &amp; Power Controls</h4>
+        <ul>
+            <li>While aiming, let the player move the ball left/right across the foul line
+                (and optionally rotate the launch direction) using the arrow keys.</li>
+            <li>Pressing <code>Space</code> starts the power meter, which sweeps back and
+                forth between min and max. Pressing <code>Space</code> again locks the
+                power and releases the ball with a velocity proportional to that power.</li>
+            <li>Model the game as a small state machine, e.g.
+                <code>aiming → power → rolling → resolving → (next roll)</code>. Only accept
+                aim/power input in the matching state.</li>
+            <li>Disable orbit input while the ball is rolling if it interferes with play
+                (the 'O' toggle must still function).</li>
+        </ul>
+
+        <h4>2. Ball Physics (Simplified)</h4>
+        <ul>
+            <li>Give the ball a velocity vector at release. Each frame, compute
+                <code>deltaTime</code> and advance the ball:
+                <code>position += velocity * deltaTime</code>. A
+                <code>THREE.Clock</code> (<code>clock.getDelta()</code>) is convenient.</li>
+            <li>Optionally apply a small sideways acceleration for spin/curve (a "hook")
+                and a little rolling friction so the ball decelerates.</li>
+            <li><strong>Gutter detection:</strong> if the ball's X position passes the lane
+                edge (|x| &gt; half-lane-width), drop it into the gutter and treat the roll
+                as 0 pins.</li>
+            <li>End the roll when the ball reaches the pin deck, leaves the lane, or
+                effectively stops.</li>
+        </ul>
+
+        <h4>3. Pin Collision &amp; Toppling</h4>
+        <ul>
+            <li>Approximate each pin as an upright cylinder. A ball-pin hit occurs when the
+                horizontal distance between the ball centre and the pin axis is less than
+                (ball radius + pin radius).</li>
+            <li>When a pin is hit, mark it as falling and animate it toppling — rotate it
+                about a horizontal axis pointing away from the impact direction until it
+                lies flat, then remove it or flag it as down.</li>
+            <li>For pin-to-pin propagation, a falling pin that is close enough to a standing
+                neighbour can knock that neighbour down too. A simple distance check between
+                pin positions is enough.</li>
+            <li>Keep a boolean (or list) of which pins are still standing; the number that
+                fell during the roll is what feeds the scorecard.</li>
+        </ul>
+
+        <h4>4. Ten-Frame Scoring</h4>
+        <ul>
+            <li>Track 10 frames. Each frame normally has up to two rolls; the 10th frame
+                allows a third roll if the player throws a strike or spare.</li>
+            <li>Scoring rules:
+                <ul>
+                    <li><strong>Strike</strong> (all 10 on the first roll): 10 + the pins
+                        from the next <em>two</em> rolls.</li>
+                    <li><strong>Spare</strong> (all 10 across two rolls): 10 + the pins from
+                        the next <em>one</em> roll.</li>
+                    <li><strong>Open frame:</strong> just the pins knocked down.</li>
+                </ul>
+            </li>
+            <li>Display the per-frame rolls with standard notation (<code>X</code> for a
+                strike, <code>/</code> for a spare) and a running cumulative total in the
+                scorecard container you created in HW05.</li>
+            <li>A perfect game (twelve strikes) totals 300 — useful for sanity-checking.</li>
+        </ul>
+
+        <h4>5. Game Flow</h4>
+        <ul>
+            <li>After each roll resolves: count fallen pins, update the scorecard, decide
+                whether the frame continues or advances, reset the standing pins when a new
+                frame begins, and return the ball to the approach for aiming.</li>
+            <li>Provide an <code>R</code> control to reset the pins / start a fresh game,
+                and clearly indicate when the game is finished.</li>
+        </ul>
+    </div>
+
+    <div class="note">
+        <h3>CONTROLS FOR HW06</h3>
+        <p>Your HW06 implementation <strong>MUST</strong> support these controls:</p>
+        <ul>
+            <li><span class="highlight">Left / Right Arrow</span>: aim / move the ball along
+                the foul line</li>
+            <li><span class="highlight">Up / Down Arrow</span>: adjust spin / curve
+                (optional, if you implement a hook)</li>
+            <li><span class="highlight">Space</span>: start the power meter, then press
+                again to lock power and release the ball</li>
+            <li><span class="highlight">R</span>: reset pins / start a new game</li>
+            <li><span class="highlight">O</span>: toggle orbit camera (carried from HW05)</li>
+        </ul>
+        <p>You may choose a different but equivalent control scheme — just document it
+        clearly on screen and in your README.</p>
+    </div>
+
+    <h3>Getting Started with the Starter Code</h3>
+    <p>The starter code provides you with the following:</p>
+    <ul>
+        <li>The same THREE.js setup, lighting, shadows, and bare lane from HW05 so the
+            project runs out of the box</li>
+        <li>Orbit camera controls toggled with the 'O' key</li>
+        <li>A window-resize handler that keeps the scene responsive</li>
+        <li>Clearly marked <code>// TODO (HW06)</code> scaffold regions for game state, the
+            power meter, input handling, physics/collision, and scoring</li>
+    </ul>
+    <p>Your task is to copy in your finished HW05 scene and build the interactive game on
+    top of it.</p>
+
+    <h3>Step-by-Step Implementation Guide</h3>
+    <ol>
+        <li>
+            <strong>Bring your HW05 scene forward</strong>
+            <p>Copy your completed HW05 code into <code>src/hw6.js</code>, replacing the bare
+            starter lane. Confirm the static scene still renders and 'O' toggles orbit.</p>
+        </li>
+        <li>
+            <strong>Add the aiming &amp; power UI</strong>
+            <p>Implement ball aiming along the foul line and an oscillating power meter, with
+            a small state machine driving the roll.</p>
+        </li>
+        <li>
+            <strong>Roll the ball</strong>
+            <p>Release the ball with a velocity from the aim and power, and integrate its
+            motion each frame. Add gutter detection.</p>
+        </li>
+        <li>
+            <strong>Knock down pins</strong>
+            <p>Detect ball-pin and pin-pin collisions, animate toppling, and track standing
+            pins.</p>
+        </li>
+        <li>
+            <strong>Keep score</strong>
+            <p>Implement ten-frame scoring with strikes, spares, and open frames, and render
+            the running total in your scorecard. Wire up frame advancement and reset.</p>
+        </li>
+    </ol>
+
+    <h3>Pin Position Reference (same as HW05)</h3>
+    <p>The 10 pins are arranged in a standard triangular formation (1-2-3-4 rows), with the
+    foul line at Z=0 and pins at negative Z:</p>
+    <div class="code">
+Pin  1 (head pin):  X=  0.0,  Z= -57.000
+Pin  2:             X= -0.5,  Z= -57.866
+Pin  3:             X=  0.5,  Z= -57.866
+Pin  4:             X= -1.0,  Z= -58.732
+Pin  5:             X=  0.0,  Z= -58.732
+Pin  6:             X=  1.0,  Z= -58.732
+Pin  7:             X= -1.5,  Z= -59.598
+Pin  8:             X= -0.5,  Z= -59.598
+Pin  9:             X=  0.5,  Z= -59.598
+Pin 10:             X=  1.5,  Z= -59.598
+    </div>
+    <p>Pin numbering follows the standard bowling convention:</p>
+    <div class="code">
+        7   8   9   10      (back row - 4 pins)
+          4   5   6         (third row - 3 pins)
+            2   3           (second row - 2 pins)
+              1             (head pin - closest to bowler)
+    </div>
+
+    <h3>Grading Criteria</h3>
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Points</th>
+            <th>Requirements</th>
+        </tr>
+        <tr>
+            <td>Aiming &amp; Controls</td>
+            <td>20</td>
+            <td>Ball aiming, oscillating power meter, release, clear on-screen controls</td>
+        </tr>
+        <tr>
+            <td>Ball Physics</td>
+            <td>20</td>
+            <td>Velocity/delta-time rolling, gutter detection, ball comes to rest</td>
+        </tr>
+        <tr>
+            <td>Pin Collision &amp; Toppling</td>
+            <td>20</td>
+            <td>Ball-pin and pin-pin collisions, topple animation, accurate standing-pin tracking</td>
+        </tr>
+        <tr>
+            <td>Scoring System</td>
+            <td>25</td>
+            <td>Correct 10-frame scoring with strikes, spares, open frames, and running total</td>
+        </tr>
+        <tr>
+            <td>Game Flow &amp; State</td>
+            <td>10</td>
+            <td>End-of-roll detection, frame advancement, pin/ball reset, new game</td>
+        </tr>
+        <tr>
+            <td>Code Quality</td>
+            <td>5</td>
+            <td>Well-organized, commented, and efficient code</td>
+        </tr>
+    </table>
+
+    <div class="note">
+        <h3>Additional Challenges (Optional) - Bonus: 10 Points</h3>
+        <p>For students seeking additional challenges, consider any of these for up to 10
+        bonus points:</p>
+        <ul>
+            <li>Ball hook / curve dynamics driven by spin input</li>
+            <li>A "follow the ball" camera and/or multiple camera presets (bowler, overhead,
+                pin-end, side)</li>
+            <li>Pinsetter / sweeper animation that clears and resets pins between frames</li>
+            <li>Sound effects (roll, pin crash, strike)</li>
+            <li>A lane-oil pattern that affects how much the ball curves</li>
+            <li>Two-player mode with separate scorecards</li>
+        </ul>
+    </div>
+
+    <div class="resources">
+        <h3>Helpful Resources</h3>
+        <ul>
+            <li><a href="https://threejs.org/docs/">Three.js Documentation</a></li>
+            <li><a href="https://threejs.org/examples/">Three.js Examples</a></li>
+            <li><a href="https://discoverthreejs.com/">Discover Three.js</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Ten-pin_bowling#Scoring">Ten-pin bowling scoring rules</a></li>
+        </ul>
+    </div>
+
+    <h3>Submission Requirements</h3>
+    <p>Submit your completed exercise in one of the following ways:</p>
+    <ul>
+        <li><strong>RECOMMENDED: Link to a public GitHub repository</strong> containing your
+            code, README, and a short gameplay video/GIF</li>
+        <li>Alternative: Zip file containing all files</li>
+    </ul>
+    <p>Your submission must include:</p>
+    <ul>
+        <li>All source code files</li>
+        <li>A README.md file explaining:
+            <ul>
+                <li><strong>MANDATORY: Full names of all group members</strong></li>
+                <li>How to run your implementation</li>
+                <li>The control scheme you implemented</li>
+                <li>Any additional / bonus features you implemented</li>
+                <li>Any known issues or limitations</li>
+                <li>Sources of any external assets used</li>
+            </ul>
+        </li>
+        <li><strong>MANDATORY: A short gameplay video or GIF</strong> demonstrating:
+            <ul>
+                <li>Aiming and releasing the ball using the power meter</li>
+                <li>The ball rolling and knocking down pins</li>
+                <li>A gutter ball</li>
+                <li>The scorecard updating across at least a few frames (ideally a strike
+                    and a spare)</li>
+            </ul>
+        </li>
+        <li>Screenshots of the game in action (aiming, a roll in progress, and the scorecard)</li>
+    </ul>
+
+    <div class="note">
+        <p><strong>Due Date:</strong> June 26, 2026, 23:59</p>
+    </div>
+
+</body>
+</html>
