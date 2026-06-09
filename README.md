@@ -60,10 +60,6 @@ power state; `O` and `R` work at any time.
 ### Bonus features
 - Ball hook / curve dynamics driven by the ↑/↓ spin input.
 
-## Known Limitations
-- Physics is intentionally simplified (no bounce/momentum transfer to the ball); pin-to-pin
-  propagation is a directional distance heuristic rather than rigid-body simulation.
-
 ## Technical Details
 - Run the server with: `node index.js`
 - Access at http://localhost:8000 in your web browser
